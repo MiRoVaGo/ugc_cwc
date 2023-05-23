@@ -98,7 +98,6 @@ p02 <- ggplot(terraclimate_et) +
 p03 <- ggplot(terraclimate_ro) +
   geom_raster(aes(x = x, y = y, fill = median)) +
   geom_sf(data = cz, fill = NA, color = "black", linewidth = 1) +
-  
   scale_fill_distiller(palette = "PRGn", direction = 1, guide = "colourbar", limits = c(-1,1)*max(abs(terraclimate_ro$median))) +
   theme_bw() +
   coord_sf(expand = FALSE) +

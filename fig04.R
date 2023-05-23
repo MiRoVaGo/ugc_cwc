@@ -23,14 +23,14 @@ p01 <- ggplot(tp_all[name == "era5"], aes(x = annual, fill = period)) +
   geom_histogram(binwidth = 50, color = "black", position = "dodge") +
   theme_bw() + 
   labs(x = NULL, y = "Count", title = " ", fill = "Period") + 
-  scale_fill_manual(values = c("#CCCCCC", "#818181")) +
+  scale_fill_manual(values = c("#0C7BCD", "#FFC20A")) +
   scale_y_continuous(limits = c(0, 10), expand = c(0, 0),
                      breaks = seq(2, 8, 2)) +
   scale_x_continuous(limits = c(450, 1050), breaks = seq(500, 1000, 100)) +
   geom_vline(xintercept = median(tp_all[name == "era5" & Z <= 1990, annual]), 
-             linetype = "dashed", color = "#CCCCCC", linewidth = 1) +
+             linetype = "dashed", color = "#0C7BCD", linewidth = 1) +
   geom_vline(xintercept = median(tp_all[name == "era5" & Z > 1990, annual]), 
-             linetype = "dashed", color = "#818181", linewidth = 1) +
+             linetype = "dashed", color = "#FFC20A", linewidth = 1) +
   theme(plot.title = element_text(size=28), axis.text = element_text(size = 20), 
         axis.title = element_text(size = 24), 
         legend.text = element_text(size = 20), 
@@ -40,14 +40,14 @@ p02 <- ggplot(tp_all[name == "mhm"], aes(x = annual, fill = period)) +
   geom_histogram(binwidth = 50, color = "black", position = "dodge") +
   theme_bw() + 
   labs(x = NULL, y = "Count", title = " ", fill = "Period") + 
-  scale_fill_manual(values = c("#CCCCCC", "#818181")) +
+  scale_fill_manual(values = c("#0C7BCD", "#FFC20A")) +
   scale_y_continuous(limits = c(0, 10), expand = c(0, 0),
                      breaks = seq(2, 8, 2)) +
   scale_x_continuous(limits = c(450, 1050), breaks = seq(500, 1000, 100)) +
   geom_vline(xintercept = median(tp_all[name == "mhm" & Z <= 1990, annual]), 
-             linetype = "dashed", color = "#CCCCCC", linewidth = 1) +
+             linetype = "dashed", color = "#0C7BCD", linewidth = 1) +
   geom_vline(xintercept = median(tp_all[name == "mhm" & Z > 1990, annual]), 
-             linetype = "dashed", color = "#818181", linewidth = 1) +
+             linetype = "dashed", color = "#FFC20A", linewidth = 1) +
   theme(plot.title = element_text(size=28), axis.text = element_text(size = 20), 
         axis.title = element_text(size = 24), 
         legend.text = element_text(size = 20), 
@@ -57,14 +57,14 @@ p03 <- ggplot(tp_all[name == "terraclimate"], aes(x = annual, fill = period)) +
   geom_histogram(binwidth = 50, color = "black", position = "dodge") +
   theme_bw() + 
   labs(x = NULL, y = "Count", title = "Annual P in [mm]", fill = "Period") + 
-  scale_fill_manual(values = c("#CCCCCC", "#818181")) +
+  scale_fill_manual(values = c("#0C7BCD", "#FFC20A")) +
   scale_y_continuous(limits = c(0, 10), expand = c(0, 0),
                      breaks = seq(2, 8, 2)) +
   scale_x_continuous(limits = c(450, 1050), breaks = seq(500, 1000, 100)) +
   geom_vline(xintercept = median(tp_all[name == "terraclimate" & Z <= 1990, annual]), 
-             linetype = "dashed", color = "#CCCCCC", linewidth = 1) +
+             linetype = "dashed", color = "#0C7BCD", linewidth = 1) +
   geom_vline(xintercept = median(tp_all[name == "terraclimate" & Z > 1990, annual]), 
-             linetype = "dashed", color = "#818181", linewidth = 1) +
+             linetype = "dashed", color = "#FFC20A", linewidth = 1) +
   theme(plot.title = element_text(size=28), axis.text = element_text(size = 20), 
         axis.title = element_text(size = 24), 
         legend.text = element_text(size = 20), 
@@ -93,14 +93,14 @@ p04 <- ggplot(e_all[name == "era5"], aes(x = annual, fill = period)) +
   geom_histogram(binwidth = 10, color = "black", position = "dodge") +
   theme_bw() + 
   labs(x = NULL, y = " ", title = " ", fill = "Period") + 
-  scale_fill_manual(values = c("#CCCCCC", "#818181")) +
+  scale_fill_manual(values = c("#0C7BCD", "#FFC20A")) +
   scale_y_continuous(limits = c(0, 10), expand = c(0, 0),
                      breaks = seq(2, 8, 2)) +
   scale_x_continuous(limits = c(425, 675), breaks = seq(450, 650, 50)) +
   geom_vline(xintercept = median(e_all[name == "era5" & Z <= 1990, annual]), 
-             linetype = "dashed", color = "#CCCCCC", linewidth = 1) +
+             linetype = "dashed", color = "#0C7BCD", linewidth = 1) +
   geom_vline(xintercept = median(e_all[name == "era5" & Z > 1990, annual]), 
-             linetype = "dashed", color = "#818181", linewidth = 1) +
+             linetype = "dashed", color = "#FFC20A", linewidth = 1) +
   theme(plot.title = element_text(size=28), axis.text = element_text(size = 20), 
         axis.title = element_text(size = 24), 
         legend.text = element_text(size = 20), 
@@ -110,14 +110,14 @@ p05 <- ggplot(e_all[name == "mhm"], aes(x = annual, fill = period)) +
   geom_histogram(binwidth = 10, color = "black", position = "dodge") +
   theme_bw() + 
   labs(x = NULL, y = " ", title = " ", fill = "Period") + 
-  scale_fill_manual(values = c("#CCCCCC", "#818181")) +
+  scale_fill_manual(values = c("#0C7BCD", "#FFC20A")) +
   scale_y_continuous(limits = c(0, 10), expand = c(0, 0),
                      breaks = seq(2, 8, 2)) +
   scale_x_continuous(limits = c(425, 675), breaks = seq(450, 650, 50)) +
   geom_vline(xintercept = median(e_all[name == "mhm" & Z <= 1990, annual]), 
-             linetype = "dashed", color = "#CCCCCC", linewidth = 1) +
+             linetype = "dashed", color = "#0C7BCD", linewidth = 1) +
   geom_vline(xintercept = median(e_all[name == "mhm" & Z > 1990, annual]), 
-             linetype = "dashed", color = "#818181", linewidth = 1) +
+             linetype = "dashed", color = "#FFC20A", linewidth = 1) +
   theme(plot.title = element_text(size=28), axis.text = element_text(size = 20), 
         axis.title = element_text(size = 24), 
         legend.text = element_text(size = 20), 
@@ -127,14 +127,14 @@ p06 <- ggplot(e_all[name == "terraclimate"], aes(x = annual, fill = period)) +
   geom_histogram(binwidth = 10, color = "black", position = "dodge") +
   theme_bw() + 
   labs(x = NULL, y = " ", title = "Annual E in [mm]", fill = "Period") + 
-  scale_fill_manual(values = c("#CCCCCC", "#818181")) +
+  scale_fill_manual(values = c("#0C7BCD", "#FFC20A")) +
   scale_y_continuous(limits = c(0, 10), expand = c(0, 0),
                      breaks = seq(2, 8, 2)) +
   scale_x_continuous(limits = c(425, 675), breaks = seq(450, 650, 50)) +
   geom_vline(xintercept = median(e_all[name == "terraclimate" & Z <= 1990, annual]), 
-             linetype = "dashed", color = "#CCCCCC", linewidth = 1) +
+             linetype = "dashed", color = "#0C7BCD", linewidth = 1) +
   geom_vline(xintercept = median(e_all[name == "terraclimate" & Z > 1990, annual]), 
-             linetype = "dashed", color = "#818181", linewidth = 1) +
+             linetype = "dashed", color = "#FFC20A", linewidth = 1) +
   theme(plot.title = element_text(size=28), axis.text = element_text(size = 20), 
         axis.title = element_text(size = 24), 
         legend.text = element_text(size = 20), 
@@ -163,14 +163,14 @@ p07 <- ggplot(ro_all[name == "era5"], aes(x = annual, fill = period)) +
   geom_histogram(binwidth = 25, color = "black", position = "dodge") +
   theme_bw() + 
   labs(x = NULL, y = " ", title = " ", fill = "Period") + 
-  scale_fill_manual(values = c("#CCCCCC", "#818181")) +
+  scale_fill_manual(values = c("#0C7BCD", "#FFC20A")) +
   scale_y_continuous(limits = c(0, 10), expand = c(0, 0),
                      breaks = seq(2, 8, 2)) +
   scale_x_continuous(limits = c(50, 425), breaks = seq(100, 400, 100)) +
   geom_vline(xintercept = median(ro_all[name == "era5" & Z <= 1990, annual]), 
-             linetype = "dashed", color = "#CCCCCC", linewidth = 1) +
+             linetype = "dashed", color = "#0C7BCD", linewidth = 1) +
   geom_vline(xintercept = median(ro_all[name == "era5" & Z > 1990, annual]), 
-             linetype = "dashed", color = "#818181", linewidth = 1) +
+             linetype = "dashed", color = "#FFC20A", linewidth = 1) +
   theme(plot.title = element_text(size=28), axis.text = element_text(size = 20), 
         axis.title = element_text(size = 24), 
         legend.text = element_text(size = 20), 
@@ -180,14 +180,14 @@ p08 <- ggplot(ro_all[name == "mhm"], aes(x = annual, fill = period)) +
   geom_histogram(binwidth = 25, color = "black", position = "dodge") +
   theme_bw() + 
   labs(x = NULL, y = " ", title = " ", fill = "Period") + 
-  scale_fill_manual(values = c("#CCCCCC", "#818181")) +
+  scale_fill_manual(values = c("#0C7BCD", "#FFC20A")) +
   scale_y_continuous(limits = c(0, 10), expand = c(0, 0),
                      breaks = seq(2, 8, 2)) +
   scale_x_continuous(limits = c(50, 425), breaks = seq(100, 400, 100)) +
   geom_vline(xintercept = median(ro_all[name == "mhm" & Z <= 1990, annual]), 
-             linetype = "dashed", color = "#CCCCCC", linewidth = 1) +
+             linetype = "dashed", color = "#0C7BCD", linewidth = 1) +
   geom_vline(xintercept = median(ro_all[name == "mhm" & Z > 1990, annual]), 
-             linetype = "dashed", color = "#818181", linewidth = 1) +
+             linetype = "dashed", color = "#FFC20A", linewidth = 1) +
   theme(plot.title = element_text(size=28), axis.text = element_text(size = 20), 
         axis.title = element_text(size = 24), 
         legend.text = element_text(size = 20), 
@@ -198,14 +198,14 @@ p09 <- ggplot(ro_all[name == "terraclimate"], aes(x = annual, fill = period)) +
   theme_bw() + 
   labs(x = NULL, y = " ", title = "Annual Q in [mm]",
        fill = "Period") + 
-  scale_fill_manual(values = c("#CCCCCC", "#818181")) +
+  scale_fill_manual(values = c("#0C7BCD", "#FFC20A")) +
   scale_y_continuous(limits = c(0, 10), expand = c(0, 0),
                      breaks = seq(2, 8, 2)) +
   scale_x_continuous(limits = c(50, 425), breaks = seq(100, 400, 100)) +
   geom_vline(xintercept = median(ro_all[name == "terraclimate" & Z <= 1990, annual]), 
-             linetype = "dashed", color = "#CCCCCC", linewidth = 1) +
+             linetype = "dashed", color = "#0C7BCD", linewidth = 1) +
   geom_vline(xintercept = median(ro_all[name == "terraclimate" & Z > 1990, annual]), 
-             linetype = "dashed", color = "#818181", linewidth = 1) +
+             linetype = "dashed", color = "#FFC20A", linewidth = 1) +
   theme(plot.title = element_text(size=28), axis.text = element_text(size = 20), 
         axis.title = element_text(size = 24), 
         legend.text = element_text(size = 20), 
@@ -223,14 +223,14 @@ p10 <- ggplot(pme_all[name == "era5"], aes(x = annual, fill = period)) +
   geom_histogram(binwidth = 25, color = "black", position = "dodge") +
   theme_bw() + 
   labs(x = NULL, y = " ", title = " ", fill = "Period") + 
-  scale_fill_manual(values = c("#CCCCCC", "#818181")) +
+  scale_fill_manual(values = c("#0C7BCD", "#FFC20A")) +
   scale_y_continuous(limits = c(0, 10), expand = c(0, 0),
                      breaks = seq(2, 8, 2))  +
   scale_x_continuous(limits = c(-50, 450), breaks = seq(0, 400, 100)) +
   geom_vline(xintercept = median(pme_all[name == "era5" & Z <= 1990, annual]), 
-             linetype = "dashed", color = "#CCCCCC", linewidth = 1) +
+             linetype = "dashed", color = "#0C7BCD", linewidth = 1) +
   geom_vline(xintercept = median(pme_all[name == "era5" & Z > 1990, annual]), 
-             linetype = "dashed", color = "#818181", linewidth = 1) +
+             linetype = "dashed", color = "#FFC20A", linewidth = 1) +
   theme(plot.title = element_text(size=28), axis.text = element_text(size = 20), 
         axis.title = element_text(size = 24), 
         legend.text = element_text(size = 20), 
@@ -240,14 +240,14 @@ p11 <- ggplot(pme_all[name == "mhm"], aes(x = annual, fill = period)) +
   geom_histogram(binwidth = 25, color = "black", position = "dodge") +
   theme_bw() + 
   labs(x = NULL, y = " ", title = " ", fill = "Period") + 
-  scale_fill_manual(values = c("#CCCCCC", "#818181")) +
+  scale_fill_manual(values = c("#0C7BCD", "#FFC20A")) +
   scale_y_continuous(limits = c(0, 10), expand = c(0, 0),
                      breaks = seq(2, 8, 2))  +
   scale_x_continuous(limits = c(-50, 450), breaks = seq(0, 400, 100)) +
   geom_vline(xintercept = median(pme_all[name == "mhm" & Z <= 1990, annual]), 
-             linetype = "dashed", color = "#CCCCCC", linewidth = 1) +
+             linetype = "dashed", color = "#0C7BCD", linewidth = 1) +
   geom_vline(xintercept = median(pme_all[name == "mhm" & Z > 1990, annual]), 
-             linetype = "dashed", color = "#818181", linewidth = 1) +
+             linetype = "dashed", color = "#FFC20A", linewidth = 1) +
   theme(plot.title = element_text(size=28), axis.text = element_text(size = 20), 
         axis.title = element_text(size = 24), 
         legend.text = element_text(size = 20), 
@@ -258,14 +258,14 @@ p12 <- ggplot(pme_all[name == "terraclimate"], aes(x = annual, fill = period)) +
   theme_bw() + 
   labs(x = NULL, y = " ", title = "Annual P - E in [mm]",
        fill = "Period") + 
-  scale_fill_manual(values = c("#CCCCCC", "#818181")) +
+  scale_fill_manual(values = c("#0C7BCD", "#FFC20A")) +
   scale_y_continuous(limits = c(0, 10), expand = c(0, 0),
                      breaks = seq(2, 8, 2))  +
   scale_x_continuous(limits = c(-50, 450), breaks = seq(0, 400, 100)) +
   geom_vline(xintercept = median(pme_all[name == "terraclimate" & Z <= 1990, annual]), 
-             linetype = "dashed", color = "#CCCCCC", linewidth = 1) +
+             linetype = "dashed", color = "#0C7BCD", linewidth = 1) +
   geom_vline(xintercept = median(pme_all[name == "terraclimate" & Z > 1990, annual]), 
-             linetype = "dashed", color = "#818181", linewidth = 1) +
+             linetype = "dashed", color = "#FFC20A", linewidth = 1) +
   theme(plot.title = element_text(size=28), axis.text = element_text(size = 20), 
         axis.title = element_text(size = 24), 
         legend.text = element_text(size = 20), 
@@ -288,4 +288,4 @@ p00 <- ggarrange(p_terra, p_mhm, p_era,
                  get_legend(p01, 'bottom'),
                  nrow = 4, align = "hv", heights = c(1,1,1,0.2))
 
-ggsave("plots/histogram.pdf", p00, width = 5.01*4, height = 5.01*3.1, dpi = 600)
+ggsave("fig04.pdf", p00, width = 5.01*4, height = 5.01*3.1, dpi = 600)

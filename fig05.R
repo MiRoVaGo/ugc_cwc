@@ -56,7 +56,7 @@ p00 <- ggplot(data_all, aes(x = as.factor(month(date)), y = value, fill = period
   geom_boxplot() +
   theme_bw() + 
   labs(x = NULL, y = 'Water Flux in [mm]', fill = "Period", title = NULL) +
-  scale_fill_manual(values = c("#CCCCCC", "#818181")) +
+  scale_fill_manual(values = c("#0C7BCD", "#FFC20A")) +
   scale_x_discrete(breaks = seq(1, 12), 
                    labels = c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul",
                               "Aug", "Sep", "Oct", "Nov", "Dec")) +
@@ -70,4 +70,4 @@ p00 <- ggplot(data_all, aes(x = as.factor(month(date)), y = value, fill = period
         strip.background = element_rect(fill = "white", color = "black", linewidth = 1),
         legend.position = 'bottom')
 
-ggsave("plots/boxplot.pdf", p00, width = 8.15*3.1, height = 5.01*4, dpi = 600)
+ggsave("fig05.pdf", p00, width = 8.15*3.1, height = 5.01*4, dpi = 600)
