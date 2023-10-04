@@ -158,7 +158,7 @@ p00 <- ggarrange(p01 + theme(legend.key.height = unit(dev.size()[2]/10, "inches"
                  nrow = 4, align = "v",
                  common.legend = TRUE, legend = "right") 
 
-ggsave("plots/map_terra.pdf", p00, width = 8.15*4.1, height = 5.01*4.4, dpi = 600)
+ggsave("fig08.pdf", p00, width = 8.15*4.1, height = 5.01*4.4, dpi = 600)
 ###
 # era5-Land
 ###
@@ -311,7 +311,7 @@ p00 <- ggarrange(p01 + theme(legend.key.height = unit(dev.size()[2]/10, "inches"
                  nrow = 4, align = "v",
                  common.legend = TRUE, legend = "right") 
 
-ggsave("plots/map_era5.pdf", p00, width = 8.15*4.1, height = 5.01*4.4, dpi = 600)
+ggsave("fig10.pdf", p00, width = 8.15*4.1, height = 5.01*4.4, dpi = 600)
 ###
 # mhm
 ###
@@ -476,4 +476,4 @@ p00 <- ggarrange(p01 + theme(legend.key.height = unit(dev.size()[2]/10, "inches"
                  nrow = 4, align = "v",
                  common.legend = TRUE, legend = "right") 
 
-ggsave("plots/map_mhm.pdf", p00, width = 8.15*4.1, height = 5.01*4.4, dpi = 600)
+ggsave("fig09.pdf", p00, width = 8.15*4.1, height = 5.01*4.4, dpi = 600)

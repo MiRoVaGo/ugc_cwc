@@ -1,178 +1,340 @@
 library(data.table)
 library(ggplot2)
+library(dplyr)
+library(sf)
 library(ggpubr)
-library(toOrdinal)
-library(gtable)
-library(grid)
-library(patchwork)
-library(gridExtra)
-###
-# tp
-###
-cru_ts <- fread("data/tp/cru-ts_tp_mm_cropped_196101_202012_025_monthly_ts.csv")
-cru_ts$name <- "CRU TS v4.06"
-e_obs <- fread("data/tp/mhm_tp_cropped_ts.csv")
-e_obs$name <- "mHM"
-era5 <- fread("data/tp/era5_tp_cropped_ts.csv")
-era5$name <- "ERA5-Land"
-ncep_ncar <- fread("data/tp/ncep_ts.csv")
-ncep_ncar$name <- "NCEP/NCAR R1"
-precl <- fread("data/tp/precl_tp_mm_cropped_196101_202012_025_monthly_ts.csv")
-precl$name <- "PREC/L"
-terraclimate <- fread("data/tp/terraclimate_tp_mm_cropped_196101_202012_025_monthly_ts.csv")
-terraclimate$name <- "TerraClimate"
-chmi <- fread("data/tp/chmi.csv")
-chmi$name <- "CHMI"
+library(scales)
+library(raster)
+library(pRecipe)
 
-tp_all <- rbind(cru_ts, e_obs, era5, ncep_ncar, precl, terraclimate, fill = TRUE)
-tp_all <- tp_all[, type := NULL]
-setnames(tp_all, c("value", "name"), c("tp", "tp_name"))
+# Basins
+basins <- st_read('data/wmobb_basins.shp')
+danube <- basins[basins$WMOBB == 642 | basins$WMOBB == 643 | basins$WMOBB == 635, ]
+danube <- st_union(danube) %>% st_sf() %>% as("Spatial")
+dummie_terra <- raster(crs = crs(danube), vals = 1,
+                         resolution = c(0.25/6, 0.25/6)) %>%
+  rasterize(danube, .)
+dummie_mhm <- raster(crs = crs(danube), vals = 1,
+                     resolution = c(0.25/2, 0.25/2)) %>%
+  rasterize(danube, .)
+dummie_era <- raster(crs = crs(danube), vals = 1,
+                     resolution = c(0.1, 0.1)) %>%
+  rasterize(danube, .)
 
-tp_cor <- merge(tp_all, chmi, by = "date", allow.cartesian = TRUE)
-tp_cor <- tp_cor[, Year := year(date)
-                 ][, annual_tp := sum(tp), by =.(Year, tp_name)
-                   ][, annual := sum(value), by = .(Year, tp_name)
-                     ][, .(Year, annual_tp, tp_name, annual, name)] %>% unique()
-tp_cor <- tp_cor[, tp_cor := cor(annual_tp, annual), by = .(tp_name, name)
-                 ][, .(tp_name, tp_cor)] %>% unique()
-###
-# et
-###
-era5 <- fread("data/e/era5_e_cropped_ts.csv")
+danube_terra <- tabular(dummie_terra)
+danube_mhm <- tabular(dummie_mhm)
+danube_era <- tabular(dummie_era)
+danube_era$lon <- danube_era$lon + 0.05
+danube_era$lat <- danube_era$lat + 0.05
+
+elbe <- basins[basins$WMOBB == 640, ] %>% st_geometry() %>% as("Spatial")
+dummie_terra <- raster(crs = crs(elbe), vals = 1,
+                       resolution = c(0.25/6, 0.25/6)) %>%
+  rasterize(elbe, .)
+dummie_mhm <- raster(crs = crs(elbe), vals = 1,
+                     resolution = c(0.25/2, 0.25/2)) %>%
+  rasterize(elbe, .)
+dummie_era <- raster(crs = crs(elbe), vals = 1,
+                     resolution = c(0.1, 0.1)) %>%
+  rasterize(elbe, .)
+
+elbe_terra <- tabular(dummie_terra)
+elbe_mhm <- tabular(dummie_mhm)
+elbe_era <- tabular(dummie_era)
+elbe_era$lon <- elbe_era$lon + 0.05
+elbe_era$lat <- elbe_era$lat + 0.05
+
+# Data tp
+## Terra
+terraclimate <- readRDS("data/tp/terra_ppt_cropped.rds")
+setnames(terraclimate, c("lon", "lat", "date", "value"))
+terraclimate[danube_terra[, .(lon, lat)], basin := "Morava", on = .(lon, lat)]
+terraclimate[elbe_terra[, .(lon, lat)], basin := "Labe", on = .(lon, lat)]
+terraclimate[is.na(basin), basin := "Odra"]
+
+terra_czechia <- fldmean(terraclimate[,.(lon, lat, date, value)])
+terra_czechia[, date := year(date)]
+terra_czechia <- terra_czechia[, .(value = sum(value)), .(date)]
+terra_czechia$domain <- "Czechia"
+terra_danube <- fldmean(terraclimate[basin == "Morava", .(lon, lat, date, value)])
+terra_danube[, date := year(date)]
+terra_danube <- terra_danube[, .(value = sum(value)), .(date)]
+terra_danube$domain <- "Morava"
+terra_elbe <- fldmean(terraclimate[basin == "Labe", .(lon, lat, date, value)])
+terra_elbe[, date := year(date)]
+terra_elbe <- terra_elbe[, .(value = sum(value)), .(date)]
+terra_elbe$domain <- "Labe"
+terra_oder <- fldmean(terraclimate[basin == "Odra", .(lon, lat, date, value)])
+terra_oder[, date := year(date)]
+terra_oder <- terra_oder[, .(value = sum(value)), .(date)]
+terra_oder$domain <- "Odra"
+
+terraclimate <- rbind(terra_czechia, terra_danube, terra_elbe, terra_oder)
+
+## mHM
+mhm <- readRDS("data/tp/mhm_tp_cropped.rds")
+setnames(mhm, c("lon", "lat", "date", "value"))
+mhm[danube_mhm[, .(lon, lat)], basin := "Morava", on = .(lon, lat)]
+mhm[elbe_mhm[, .(lon, lat)], basin := "Labe", on = .(lon, lat)]
+mhm[is.na(basin), basin := "Odra"]
+
+mhm_czechia <- fldmean(mhm[,.(lon, lat, date, value)])
+mhm_czechia[, date := year(date)]
+mhm_czechia <- mhm_czechia[, .(value = sum(value)), .(date)]
+mhm_czechia$domain <- "Czechia"
+mhm_danube <- fldmean(mhm[basin == "Morava", .(lon, lat, date, value)])
+mhm_danube[, date := year(date)]
+mhm_danube <- mhm_danube[, .(value = sum(value)), .(date)]
+mhm_danube$domain <- "Morava"
+mhm_elbe <- fldmean(mhm[basin == "Labe", .(lon, lat, date, value)])
+mhm_elbe[, date := year(date)]
+mhm_elbe <- mhm_elbe[, .(value = sum(value)), .(date)]
+mhm_elbe$domain <- "Labe"
+mhm_oder <- fldmean(mhm[basin == "Odra", .(lon, lat, date, value)])
+mhm_oder[, date := year(date)]
+mhm_oder <- mhm_oder[, .(value = sum(value)), .(date)]
+mhm_oder$domain <- "Odra"
+
+mhm <- rbind(mhm_czechia, mhm_danube, mhm_elbe, mhm_oder)
+
+## ERA5
+era5 <- readRDS("data/tp/era5_tp_cropped.rds")
+setnames(era5, c("lon", "lat", "date", "value"))
+era5[danube_era[, .(lon, lat)], basin := "Morava", on = .(lon, lat)]
+era5[elbe_era[, .(lon, lat)], basin := "Labe", on = .(lon, lat)]
+era5[is.na(basin), basin := "Odra"]
+
+era_czechia <- fldmean(era5[,.(lon, lat, date, value)])
+era_czechia[, date := year(date)]
+era_czechia <- era_czechia[, .(value = sum(value)), .(date)]
+era_czechia$domain <- "Czechia"
+era_danube <- fldmean(era5[basin == "Morava", .(lon, lat, date, value)])
+era_danube[, date := year(date)]
+era_danube <- era_danube[, .(value = sum(value)), .(date)]
+era_danube$domain <- "Morava"
+era_elbe <- fldmean(era5[basin == "Labe", .(lon, lat, date, value)])
+era_elbe[, date := year(date)]
+era_elbe <- era_elbe[, .(value = sum(value)), .(date)]
+era_elbe$domain <- "Labe"
+era_oder <- fldmean(era5[basin == "Odra", .(lon, lat, date, value)])
+era_oder[, date := year(date)]
+era_oder <- era_oder[, .(value = sum(value)), .(date)]
+era_oder$domain <- "Odra"
+
+era5 <- rbind(era_czechia, era_danube, era_elbe, era_oder)
+
 era5$name <- "ERA5-Land"
-mhm <- fread("data/e/mhm_e_cropped_ts.csv")
 mhm$name <- "mHM"
-ncep_ncar <- fread("data/e/ncep_ts.csv")
-ncep_ncar$name <- "NCEP/NCAR R1"
-terraclimate <- fread("data/e/terraclimate_e_mm_cropped_196101_202012_025_monthly_ts.csv")
 terraclimate$name <- "TerraClimate"
-gleam <- fread("data/e/gleam_e_mm_cropped_198001_202112_025_monthly_ts.csv")
-gleam$name <- "GLEAM v3.6a"
 
-e_all <- rbind(era5, mhm, ncep_ncar, terraclimate, fill = TRUE)
-e_all <- e_all[, type := NULL]
-setnames(e_all, c("value", "name"), c("e", "e_name"))
+tp_all <- rbind(terraclimate, mhm, era5)
+setnames(tp_all, "value", "P")
 
-e_cor <- merge(e_all, gleam, by = "date", allow.cartesian = TRUE)
-e_cor <- e_cor[, Year := year(date)
-                ][, annual_e := sum(e), by =.(Year, e_name)
-                  ][, annual := sum(value), by = .(Year, e_name)
-                    ][, .(Year, annual_e, e_name, annual, name)] %>% unique()
-e_cor <- e_cor[, e_cor := cor(annual_e, annual), by = .(e_name, name)
-               ][, .(e_name, e_cor)] %>% unique()
-###
-# ro
-###
-era5 <- fread("data/ro/era5_ro_cropped_ts.csv")
+# Data et
+## Terra
+terraclimate <- readRDS("data/e/terra_aet_cropped.rds")
+setnames(terraclimate, c("lon", "lat", "date", "value"))
+terraclimate[danube_terra[, .(lon, lat)], basin := "Morava", on = .(lon, lat)]
+terraclimate[elbe_terra[, .(lon, lat)], basin := "Labe", on = .(lon, lat)]
+terraclimate[is.na(basin), basin := "Odra"]
+
+terra_czechia <- fldmean(terraclimate[,.(lon, lat, date, value)])
+terra_czechia[, date := year(date)]
+terra_czechia <- terra_czechia[, .(value = sum(value)), .(date)]
+terra_czechia$domain <- "Czechia"
+terra_danube <- fldmean(terraclimate[basin == "Morava", .(lon, lat, date, value)])
+terra_danube[, date := year(date)]
+terra_danube <- terra_danube[, .(value = sum(value)), .(date)]
+terra_danube$domain <- "Morava"
+terra_elbe <- fldmean(terraclimate[basin == "Labe", .(lon, lat, date, value)])
+terra_elbe[, date := year(date)]
+terra_elbe <- terra_elbe[, .(value = sum(value)), .(date)]
+terra_elbe$domain <- "Labe"
+terra_oder <- fldmean(terraclimate[basin == "Odra", .(lon, lat, date, value)])
+terra_oder[, date := year(date)]
+terra_oder <- terra_oder[, .(value = sum(value)), .(date)]
+terra_oder$domain <- "Odra"
+
+terraclimate <- rbind(terra_czechia, terra_danube, terra_elbe, terra_oder)
+
+## mHM
+mhm <- readRDS("data/e/mhm_e_cropped.rds")
+setnames(mhm, c("lon", "lat", "date", "value"))
+mhm[danube_mhm[, .(lon, lat)], basin := "Morava", on = .(lon, lat)]
+mhm[elbe_mhm[, .(lon, lat)], basin := "Labe", on = .(lon, lat)]
+mhm[is.na(basin), basin := "Odra"]
+
+mhm_czechia <- fldmean(mhm[,.(lon, lat, date, value)])
+mhm_czechia[, date := year(date)]
+mhm_czechia <- mhm_czechia[, .(value = sum(value)), .(date)]
+mhm_czechia$domain <- "Czechia"
+mhm_danube <- fldmean(mhm[basin == "Morava", .(lon, lat, date, value)])
+mhm_danube[, date := year(date)]
+mhm_danube <- mhm_danube[, .(value = sum(value)), .(date)]
+mhm_danube$domain <- "Morava"
+mhm_elbe <- fldmean(mhm[basin == "Labe", .(lon, lat, date, value)])
+mhm_elbe[, date := year(date)]
+mhm_elbe <- mhm_elbe[, .(value = sum(value)), .(date)]
+mhm_elbe$domain <- "Labe"
+mhm_oder <- fldmean(mhm[basin == "Odra", .(lon, lat, date, value)])
+mhm_oder[, date := year(date)]
+mhm_oder <- mhm_oder[, .(value = sum(value)), .(date)]
+mhm_oder$domain <- "Odra"
+
+mhm <- rbind(mhm_czechia, mhm_danube, mhm_elbe, mhm_oder)
+
+## ERA5
+era5 <- readRDS("data/e/era5_e_cropped.rds")
+setnames(era5, c("lon", "lat", "date", "value"))
+era5[danube_era[, .(lon, lat)], basin := "Morava", on = .(lon, lat)]
+era5[elbe_era[, .(lon, lat)], basin := "Labe", on = .(lon, lat)]
+era5[is.na(basin), basin := "Odra"]
+
+era_czechia <- fldmean(era5[,.(lon, lat, date, value)])
+era_czechia[, date := year(date)]
+era_czechia <- era_czechia[, .(value = sum(value)), .(date)]
+era_czechia$domain <- "Czechia"
+era_danube <- fldmean(era5[basin == "Morava", .(lon, lat, date, value)])
+era_danube[, date := year(date)]
+era_danube <- era_danube[, .(value = sum(value)), .(date)]
+era_danube$domain <- "Morava"
+era_elbe <- fldmean(era5[basin == "Labe", .(lon, lat, date, value)])
+era_elbe[, date := year(date)]
+era_elbe <- era_elbe[, .(value = sum(value)), .(date)]
+era_elbe$domain <- "Labe"
+era_oder <- fldmean(era5[basin == "Odra", .(lon, lat, date, value)])
+era_oder[, date := year(date)]
+era_oder <- era_oder[, .(value = sum(value)), .(date)]
+era_oder$domain <- "Odra"
+
+era5 <- rbind(era_czechia, era_danube, era_elbe, era_oder)
+
 era5$name <- "ERA5-Land"
-mhm <- fread("data/ro/mhm_ro_cropped_ts.csv")
 mhm$name <- "mHM"
-ncep_ncar <- fread("data/ro/ncep-ncar_cropped_ts.csv")
-ncep_ncar <- ncep_ncar[, name := NULL]
-ncep_ncar$name <- "NCEP/NCAR R1"
-terraclimate <- fread("data/ro/terraclimate_ro_mm_cropped_196101_202012_025_monthly_ts.csv")
 terraclimate$name <- "TerraClimate"
-grun <- fread("data/ro/grun_ro_mm_cropped_190201_201412_025_monthly_ts.csv")
-grun$name <- "GRUN v1"
 
-ro_all <- rbind(era5, mhm, ncep_ncar, terraclimate, fill = TRUE)
-ro_all <- ro_all[, type := NULL]
-setnames(ro_all, c("value", "name"), c("ro", "ro_name"))
+et_all <- rbind(terraclimate, mhm, era5)
+setnames(et_all, "value", "E")
 
-ro_cor <- merge(ro_all, grun, by = "date", allow.cartesian = TRUE)
-ro_cor <- ro_cor[, Year := year(date)
-                 ][, annual_ro := sum(ro), by =.(Year, ro_name)
-                   ][, annual := sum(value), by = .(Year, ro_name)
-                     ][, .(Year, annual_ro, ro_name, annual, name)] %>% unique()
-ro_cor <- ro_cor[, ro_cor := cor(annual_ro, annual), by = .(ro_name, name)
-                 ][, .(ro_name, ro_cor)] %>% unique()
-###
-# budget
-###
-cwc <- merge(tp_all, e_all, by = "date", allow.cartesian = TRUE) %>%
-  merge(ro_all, by = "date", allow.cartesian = TRUE)
-cwc <- cwc[, Z := year(date)
-           ][, P := sum(tp), by = .(Z, tp_name, e_name, ro_name)
-             ][, E := sum(e), by = .(Z, tp_name, e_name, ro_name)
-               ][, Q := sum(ro), by = .(Z, tp_name, e_name, ro_name)
-                 ][, r := P - E - Q
-                   ][, r_cor := cor(P - E, Q), by = .(tp_name, e_name, ro_name)
-                     ][, .(Z, r, r_cor, tp_name, e_name, ro_name)] %>% unique()
+# Data ro
+## Terra
+terraclimate <- readRDS("data/ro/terra_q_cropped.rds")
+setnames(terraclimate, c("lon", "lat", "date", "value"))
+terraclimate[danube_terra[, .(lon, lat)], basin := "Morava", on = .(lon, lat)]
+terraclimate[elbe_terra[, .(lon, lat)], basin := "Labe", on = .(lon, lat)]
+terraclimate[is.na(basin), basin := "Odra"]
 
-cwc_dist <- copy(cwc)
-cwc_dist <- cwc_dist[, r_mean := mean(r), by = .(tp_name, e_name, ro_name)
-                     ][, r_sd := sd(r), by = .(tp_name, e_name, ro_name)
-                       ][, .(r_mean, r_sd, r_cor, tp_name, e_name, ro_name)] %>%
-  unique()
-cwc_dist <- merge(cwc_dist, tp_cor, by = "tp_name", allow.cartesian = TRUE) %>%
-  merge(e_cor, by = "e_name", allow.cartesian = TRUE) %>%
-  merge(ro_cor, by = "ro_name", allow.cartesian = TRUE)
-cwc_dist <- cwc_dist[order(cwc_dist$r_sd, abs(cwc_dist$r_mean), rev(r_cor),
-                           rev(tp_cor), rev(e_cor), rev(ro_cor))]
+terra_czechia <- fldmean(terraclimate[,.(lon, lat, date, value)])
+terra_czechia[, date := year(date)]
+terra_czechia <- terra_czechia[, .(value = sum(value)), .(date)]
+terra_czechia$domain <- "Czechia"
+terra_danube <- fldmean(terraclimate[basin == "Morava", .(lon, lat, date, value)])
+terra_danube[, date := year(date)]
+terra_danube <- terra_danube[, .(value = sum(value)), .(date)]
+terra_danube$domain <- "Morava"
+terra_elbe <- fldmean(terraclimate[basin == "Labe", .(lon, lat, date, value)])
+terra_elbe[, date := year(date)]
+terra_elbe <- terra_elbe[, .(value = sum(value)), .(date)]
+terra_elbe$domain <- "Labe"
+terra_oder <- fldmean(terraclimate[basin == "Odra", .(lon, lat, date, value)])
+terra_oder[, date := year(date)]
+terra_oder <- terra_oder[, .(value = sum(value)), .(date)]
+terra_oder$domain <- "Odra"
 
-cwc_rank <- copy(cwc_dist)
-cwc_rank <- cwc_rank[, rank := (r_sd*abs(r_mean))/((r_cor*tp_cor*e_cor*ro_cor)^2)
-                     ][, .(rank, tp_name, e_name, ro_name)]
-cwc_rank <- cwc_rank[order(rank)]
-cwc_rank$rank_idx <- seq.int(nrow(cwc_rank))
-cwc_rank <- cwc_rank[, .(rank_idx, tp_name, e_name, ro_name)]
+terraclimate <- rbind(terra_czechia, terra_danube, terra_elbe, terra_oder)
 
-cwc <- merge(cwc, cwc_rank, by = c("tp_name", "e_name", "ro_name"),
-             allow.cartesian = TRUE)
-###
-# Plots
-###
-# p01 <- ggplot(cwc[(rank_idx == 1) | (rank_idx == 24) | (rank_idx == 48) |
-#              (rank_idx == 72) | (rank_idx == 96)]) +
-#   geom_density(aes(x = r, fill = as.factor(rank_idx), group = rank_idx),
-#                alpha = 0.7) +
-#   scale_fill_manual(labels = c("1st", "24th", "48th", "72nd", "96th"),
-#                     values = c("24" = "#F4CC70", "48" = "#EBB582",
-#                                "72" = "#D24136", "1" = "#739F3D", "96" = "red4")) +
-#   theme_bw() + 
-#   labs(x = "Budget Residual", y = "Density", fill = "Ranking") +
-#   scale_x_continuous(limits = c(-720, 720), expand = c(0, 0)) +
-#   scale_y_continuous(limits = c(0, 0.014), expand = c(0, 0),
-#                      breaks = seq(0.002, 0.012, 0.002)) +
-#   theme(panel.border = element_rect(colour = "black", linewidth = 2),
-#         panel.grid.minor.y = element_blank(),
-#         axis.text = element_text(size = 16), 
-#         axis.title = element_text(size = 20), 
-#         legend.text = element_text(size = 16), 
-#         legend.title = element_text(size = 20), 
-#         axis.ticks.length.y = unit(-.25, "cm"))
-# 
-# p02 <- copy(cwc_rank)
-# p02$rank_idx <- toOrdinal(p02$rank_idx)
-# setnames(p02, c("rank_idx", "tp_name", "e_name", "ro_name"),
-#          c("Ranking", "P Data", "E Data", "Q Data"))
-# p02 <- tableGrob(p02, rows = NULL, theme = ttheme_minimal(base_size = 16))
-# 
-# p02 <- gtable_add_grob(p02, grobs = segmentsGrob(x0 = unit(0,"npc"),
-#                                                  y0 = unit(0,"npc"),
-#                                                  x1 = unit(1,"npc"),
-#                                                  y1 = unit(0,"npc"),
-#                                                  gp = gpar(lwd = 4)),
-#                        t = 1, b = 1, l = 1, r = 4)
+## mHM
+mhm <- readRDS("data/ro/mhm_ro_cropped.rds")
+setnames(mhm, c("lon", "lat", "date", "value"))
+mhm[danube_mhm[, .(lon, lat)], basin := "Morava", on = .(lon, lat)]
+mhm[elbe_mhm[, .(lon, lat)], basin := "Labe", on = .(lon, lat)]
+mhm[is.na(basin), basin := "Odra"]
 
-p03 <- ggplot(cwc) +
-  geom_density(aes(x = r, fill = rank_idx, group = rank_idx)) +
-  scale_fill_distiller(guide = "colourbar", palette = "BrBG") +
-  theme_bw() + 
-  labs(x = "Budget Residual", y = "Density", fill = "Ranking") +
-  scale_x_continuous(limits = c(-720, 720), expand = c(0, 0)) +
-  scale_y_continuous(limits = c(0, 0.014), expand = c(0, 0),
-                     breaks = seq(0.002, 0.012, 0.002)) +
-  theme(panel.border = element_rect(colour = "black", linewidth = 2),
-        panel.grid.minor.y = element_blank(),
-        axis.text = element_text(size = 16), 
-        axis.title = element_text(size = 20), 
-        legend.text = element_text(size = 16), 
-        legend.title = element_text(size = 20), 
-        axis.ticks.length.y = unit(-.25, "cm"))
+mhm_czechia <- fldmean(mhm[,.(lon, lat, date, value)])
+mhm_czechia[, date := year(date)]
+mhm_czechia <- mhm_czechia[, .(value = sum(value)), .(date)]
+mhm_czechia$domain <- "Czechia"
+mhm_danube <- fldmean(mhm[basin == "Morava", .(lon, lat, date, value)])
+mhm_danube[, date := year(date)]
+mhm_danube <- mhm_danube[, .(value = sum(value)), .(date)]
+mhm_danube$domain <- "Morava"
+mhm_elbe <- fldmean(mhm[basin == "Labe", .(lon, lat, date, value)])
+mhm_elbe[, date := year(date)]
+mhm_elbe <- mhm_elbe[, .(value = sum(value)), .(date)]
+mhm_elbe$domain <- "Labe"
+mhm_oder <- fldmean(mhm[basin == "Odra", .(lon, lat, date, value)])
+mhm_oder[, date := year(date)]
+mhm_oder <- mhm_oder[, .(value = sum(value)), .(date)]
+mhm_oder$domain <- "Odra"
 
-#p00 <- ggarrange(p02, ggarrange(NULL, p03, NULL, p01, NULL, NULL, NULL,
-#                                nrow = 7, labels = c("", "b", "", "c")),
-#                 ncol = 2, labels = c("a"))
-#ggsave("plots/ranking_sup.pdf", p00, width = 8.15*2, height = 5.01*6.2)
-ggsave("plots/ranking.pdf", p03, width = 8.15, height = 5.01)
+mhm <- rbind(mhm_czechia, mhm_danube, mhm_elbe, mhm_oder)
+
+## ERA5
+era5 <- readRDS("data/ro/era5_ro_cropped.rds")
+setnames(era5, c("lon", "lat", "date", "value"))
+era5[danube_era[, .(lon, lat)], basin := "Morava", on = .(lon, lat)]
+era5[elbe_era[, .(lon, lat)], basin := "Labe", on = .(lon, lat)]
+era5[is.na(basin), basin := "Odra"]
+
+era_czechia <- fldmean(era5[,.(lon, lat, date, value)])
+era_czechia[, date := year(date)]
+era_czechia <- era_czechia[, .(value = sum(value)), .(date)]
+era_czechia$domain <- "Czechia"
+era_danube <- fldmean(era5[basin == "Morava", .(lon, lat, date, value)])
+era_danube[, date := year(date)]
+era_danube <- era_danube[, .(value = sum(value)), .(date)]
+era_danube$domain <- "Morava"
+era_elbe <- fldmean(era5[basin == "Labe", .(lon, lat, date, value)])
+era_elbe[, date := year(date)]
+era_elbe <- era_elbe[, .(value = sum(value)), .(date)]
+era_elbe$domain <- "Labe"
+era_oder <- fldmean(era5[basin == "Odra", .(lon, lat, date, value)])
+era_oder[, date := year(date)]
+era_oder <- era_oder[, .(value = sum(value)), .(date)]
+era_oder$domain <- "Odra"
+
+era5 <- rbind(era_czechia, era_danube, era_elbe, era_oder)
+
+era5$name <- "ERA5-Land"
+mhm$name <- "mHM"
+terraclimate$name <- "TerraClimate"
+
+ro_all <- rbind(terraclimate, mhm, era5)
+setnames(ro_all, "value", "Q")
+
+#
+data_all <- merge(tp_all, et_all, by = c("date", "domain", "name")) %>%
+  merge(ro_all, by = c("date", "domain", "name"))
+data_all[, Residual := P - E - Q, by = .(date, domain, name)]
+data_all[, `Cumulative\nResidual` := cumsum(Residual), by = .(domain, name)]
+
+data_all$name <- factor(data_all$name,
+                        levels = c('TerraClimate', 'mHM', 'ERA5-Land'))
+
+data_all <- melt(data_all,c('date', 'domain', 'name'))
+
+cols <- c("#1f78b4", "#33a02c", "#7570b3", "black", "#d95f02")
+
+p00 <- ggplot(data_all, aes(x = date, y = value, color = variable)) +
+  geom_line(linewidth = 1) +
+  facet_grid(domain ~ name) +
+  theme_bw() +
+  scale_color_manual(values = cols,
+                     labels = c('Residual' = expression(xi),
+                                'Cumulative\nResidual' =
+                                  expression(paste("c(", xi, ")",
+                                                   sep = "")))) + 
+  labs(x = NULL, y = 'Water Flux in [mm]', title = NULL, color = NULL) +
+  #scale_y_continuous(limits = c(-600, 200)) +
+  theme(plot.title = element_text(size = 32),
+        axis.text = element_text(size = 24), 
+        axis.title = element_text(size = 28),
+        axis.text.x = element_text(angle = 90, vjust = 0.5),
+        legend.text = element_text(size = 24), 
+        legend.title = element_text(size = 28),
+        strip.text = element_text(size = 28),
+        strip.background = element_rect(fill = "white", color = "black",
+                                        linewidth = 1))
+
+ggsave("fig03.pdf", p00, width = 16, height = 9*1.5, dpi = 600)
+

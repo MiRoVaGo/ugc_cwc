@@ -1,291 +1,163 @@
 library(data.table)
 library(ggplot2)
 library(ggpubr)
+library(toOrdinal)
+library(gtable)
+library(grid)
+library(patchwork)
+library(gridExtra)
 ###
 # tp
 ###
+cru_ts <- fread("data/tp/cru-ts_tp_mm_cropped_196101_202012_025_monthly_ts.csv")
+cru_ts$name <- "CRU TS v4.06"
+e_obs <- fread("data/tp/mhm_tp_cropped_ts.csv")
+e_obs$name <- "mHM"
 era5 <- fread("data/tp/era5_tp_cropped_ts.csv")
-era5$name <- "era5"
-mhm <- fread("data/tp/mhm_tp_cropped_ts.csv")
-mhm$name <- "mhm"
+era5$name <- "ERA5-Land"
+ncep_ncar <- fread("data/tp/ncep_ts.csv")
+ncep_ncar$name <- "NCEP/NCAR R1"
+precl <- fread("data/tp/precl_tp_mm_cropped_196101_202012_025_monthly_ts.csv")
+precl$name <- "PREC/L"
 terraclimate <- fread("data/tp/terraclimate_tp_mm_cropped_196101_202012_025_monthly_ts.csv")
-terraclimate$type <- NULL
-terraclimate$name <- "terraclimate"
+terraclimate$name <- "TerraClimate"
+chmi <- fread("data/tp/chmi.csv")
+chmi$name <- "CHMI"
 
-tp_all <- rbind(era5, mhm, terraclimate)
-tp_all <- tp_all[year(date) <= 1990, period := "1961-1990"
-                 ][year(date) > 1990, period := "1991-2020"
-                   ][, Z := year(date)
-                     ][, annual := sum(value, na.rm = TRUE), by = .(Z, name)
-                       ][, .(Z, annual, period, name)] %>% unique()
+tp_all <- rbind(cru_ts, e_obs, era5, ncep_ncar, precl, terraclimate, fill = TRUE)
+tp_all <- tp_all[, type := NULL]
+setnames(tp_all, c("value", "name"), c("tp", "tp_name"))
 
-p01 <- ggplot(tp_all[name == "era5"], aes(x = annual, fill = period)) +
-  geom_histogram(binwidth = 50, color = "black", position = "dodge") +
-  theme_bw() + 
-  labs(x = NULL, y = "Count", title = " ", fill = "Period") + 
-  scale_fill_manual(values = c("#0C7BCD", "#FFC20A")) +
-  scale_y_continuous(limits = c(0, 10), expand = c(0, 0),
-                     breaks = seq(2, 8, 2)) +
-  scale_x_continuous(limits = c(450, 1050), breaks = seq(500, 1000, 100)) +
-  geom_vline(xintercept = median(tp_all[name == "era5" & Z <= 1990, annual]), 
-             linetype = "dashed", color = "#0C7BCD", linewidth = 1) +
-  geom_vline(xintercept = median(tp_all[name == "era5" & Z > 1990, annual]), 
-             linetype = "dashed", color = "#FFC20A", linewidth = 1) +
-  theme(plot.title = element_text(size=28), axis.text = element_text(size = 20), 
-        axis.title = element_text(size = 24), 
-        legend.text = element_text(size = 20), 
-        legend.title = element_text(size = 24))
-
-p02 <- ggplot(tp_all[name == "mhm"], aes(x = annual, fill = period)) +
-  geom_histogram(binwidth = 50, color = "black", position = "dodge") +
-  theme_bw() + 
-  labs(x = NULL, y = "Count", title = " ", fill = "Period") + 
-  scale_fill_manual(values = c("#0C7BCD", "#FFC20A")) +
-  scale_y_continuous(limits = c(0, 10), expand = c(0, 0),
-                     breaks = seq(2, 8, 2)) +
-  scale_x_continuous(limits = c(450, 1050), breaks = seq(500, 1000, 100)) +
-  geom_vline(xintercept = median(tp_all[name == "mhm" & Z <= 1990, annual]), 
-             linetype = "dashed", color = "#0C7BCD", linewidth = 1) +
-  geom_vline(xintercept = median(tp_all[name == "mhm" & Z > 1990, annual]), 
-             linetype = "dashed", color = "#FFC20A", linewidth = 1) +
-  theme(plot.title = element_text(size=28), axis.text = element_text(size = 20), 
-        axis.title = element_text(size = 24), 
-        legend.text = element_text(size = 20), 
-        legend.title = element_text(size = 24))
-
-p03 <- ggplot(tp_all[name == "terraclimate"], aes(x = annual, fill = period)) +
-  geom_histogram(binwidth = 50, color = "black", position = "dodge") +
-  theme_bw() + 
-  labs(x = NULL, y = "Count", title = "Annual P in [mm]", fill = "Period") + 
-  scale_fill_manual(values = c("#0C7BCD", "#FFC20A")) +
-  scale_y_continuous(limits = c(0, 10), expand = c(0, 0),
-                     breaks = seq(2, 8, 2)) +
-  scale_x_continuous(limits = c(450, 1050), breaks = seq(500, 1000, 100)) +
-  geom_vline(xintercept = median(tp_all[name == "terraclimate" & Z <= 1990, annual]), 
-             linetype = "dashed", color = "#0C7BCD", linewidth = 1) +
-  geom_vline(xintercept = median(tp_all[name == "terraclimate" & Z > 1990, annual]), 
-             linetype = "dashed", color = "#FFC20A", linewidth = 1) +
-  theme(plot.title = element_text(size=28), axis.text = element_text(size = 20), 
-        axis.title = element_text(size = 24), 
-        legend.text = element_text(size = 20), 
-        legend.title = element_text(size = 24))
-
-gg_tp <- ggarrange(p03, p02, p01, nrow = 3, align = "v")
+tp_cor <- merge(tp_all, chmi, by = "date", allow.cartesian = TRUE)
+tp_cor <- tp_cor[, Year := year(date)
+][, annual_tp := sum(tp), by =.(Year, tp_name)
+][, annual := sum(value), by = .(Year, tp_name)
+][, .(Year, annual_tp, tp_name, annual, name)] %>% unique()
+tp_cor <- tp_cor[, tp_cor := cor(annual_tp, annual), by = .(tp_name, name)
+][, .(tp_name, tp_cor)] %>% unique()
 ###
-# e
+# et
 ###
 era5 <- fread("data/e/era5_e_cropped_ts.csv")
-era5$name <- "era5"
+era5$name <- "ERA5-Land"
 mhm <- fread("data/e/mhm_e_cropped_ts.csv")
-mhm$name <- "mhm"
+mhm$name <- "mHM"
+ncep_ncar <- fread("data/e/ncep_ts.csv")
+ncep_ncar$name <- "NCEP/NCAR R1"
 terraclimate <- fread("data/e/terraclimate_e_mm_cropped_196101_202012_025_monthly_ts.csv")
-terraclimate$type <- NULL
-terraclimate$name <- "terraclimate"
+terraclimate$name <- "TerraClimate"
 
-e_all <- rbind(era5, mhm, terraclimate)
-e_all <- e_all[year(date) <= 1990, period := "1961-1990"
-               ][year(date) > 1990, period := "1991-2020"
-                 ][, Z := year(date)
-                   ][, annual := sum(value, na.rm = TRUE), by = .(Z, name)
-                     ][, .(Z, annual, period, name)] %>% unique()
-
-p04 <- ggplot(e_all[name == "era5"], aes(x = annual, fill = period)) +
-  geom_histogram(binwidth = 10, color = "black", position = "dodge") +
-  theme_bw() + 
-  labs(x = NULL, y = " ", title = " ", fill = "Period") + 
-  scale_fill_manual(values = c("#0C7BCD", "#FFC20A")) +
-  scale_y_continuous(limits = c(0, 10), expand = c(0, 0),
-                     breaks = seq(2, 8, 2)) +
-  scale_x_continuous(limits = c(425, 675), breaks = seq(450, 650, 50)) +
-  geom_vline(xintercept = median(e_all[name == "era5" & Z <= 1990, annual]), 
-             linetype = "dashed", color = "#0C7BCD", linewidth = 1) +
-  geom_vline(xintercept = median(e_all[name == "era5" & Z > 1990, annual]), 
-             linetype = "dashed", color = "#FFC20A", linewidth = 1) +
-  theme(plot.title = element_text(size=28), axis.text = element_text(size = 20), 
-        axis.title = element_text(size = 24), 
-        legend.text = element_text(size = 20), 
-        legend.title = element_text(size = 24))
-
-p05 <- ggplot(e_all[name == "mhm"], aes(x = annual, fill = period)) +
-  geom_histogram(binwidth = 10, color = "black", position = "dodge") +
-  theme_bw() + 
-  labs(x = NULL, y = " ", title = " ", fill = "Period") + 
-  scale_fill_manual(values = c("#0C7BCD", "#FFC20A")) +
-  scale_y_continuous(limits = c(0, 10), expand = c(0, 0),
-                     breaks = seq(2, 8, 2)) +
-  scale_x_continuous(limits = c(425, 675), breaks = seq(450, 650, 50)) +
-  geom_vline(xintercept = median(e_all[name == "mhm" & Z <= 1990, annual]), 
-             linetype = "dashed", color = "#0C7BCD", linewidth = 1) +
-  geom_vline(xintercept = median(e_all[name == "mhm" & Z > 1990, annual]), 
-             linetype = "dashed", color = "#FFC20A", linewidth = 1) +
-  theme(plot.title = element_text(size=28), axis.text = element_text(size = 20), 
-        axis.title = element_text(size = 24), 
-        legend.text = element_text(size = 20), 
-        legend.title = element_text(size = 24))
-
-p06 <- ggplot(e_all[name == "terraclimate"], aes(x = annual, fill = period)) +
-  geom_histogram(binwidth = 10, color = "black", position = "dodge") +
-  theme_bw() + 
-  labs(x = NULL, y = " ", title = "Annual E in [mm]", fill = "Period") + 
-  scale_fill_manual(values = c("#0C7BCD", "#FFC20A")) +
-  scale_y_continuous(limits = c(0, 10), expand = c(0, 0),
-                     breaks = seq(2, 8, 2)) +
-  scale_x_continuous(limits = c(425, 675), breaks = seq(450, 650, 50)) +
-  geom_vline(xintercept = median(e_all[name == "terraclimate" & Z <= 1990, annual]), 
-             linetype = "dashed", color = "#0C7BCD", linewidth = 1) +
-  geom_vline(xintercept = median(e_all[name == "terraclimate" & Z > 1990, annual]), 
-             linetype = "dashed", color = "#FFC20A", linewidth = 1) +
-  theme(plot.title = element_text(size=28), axis.text = element_text(size = 20), 
-        axis.title = element_text(size = 24), 
-        legend.text = element_text(size = 20), 
-        legend.title = element_text(size = 24))
-
-gg_e <- ggarrange(p06, p05, p04, nrow = 3, align = "v")
+e_all <- rbind(era5, mhm, ncep_ncar, terraclimate, fill = TRUE)
+e_all <- e_all[, type := NULL]
+setnames(e_all, c("value", "name"), c("e", "e_name"))
 ###
-# q
-##
+# ro
+###
 era5 <- fread("data/ro/era5_ro_cropped_ts.csv")
-era5$name <- "era5"
+era5$name <- "ERA5-Land"
 mhm <- fread("data/ro/mhm_ro_cropped_ts.csv")
-mhm$name <- "mhm"
+mhm$name <- "mHM"
+ncep_ncar <- fread("data/ro/ncep-ncar_cropped_ts.csv")
+ncep_ncar$name <- "NCEP/NCAR R1"
 terraclimate <- fread("data/ro/terraclimate_ro_mm_cropped_196101_202012_025_monthly_ts.csv")
-terraclimate$type <- NULL
-terraclimate$name <- "terraclimate"
+terraclimate$name <- "TerraClimate"
+grdc <- fread("data/ro/grdc.csv")
+grdc$name <- "GRDC"
 
-ro_all <- rbind(era5, mhm, terraclimate)
-ro_all <- ro_all[year(date) <= 1990, period := "1961-1990"
-                 ][year(date) > 1990, period := "1991-2020"
-                   ][, Z := year(date)
-                     ][, annual := sum(value, na.rm = TRUE), by = .(Z, name)
-                       ][, .(Z, annual, period, name)] %>% unique()
+ro_all <- rbind(era5, mhm, ncep_ncar, terraclimate, fill = TRUE)
+ro_all <- ro_all[, type := NULL]
+setnames(ro_all, c("value", "name"), c("ro", "ro_name"))
 
-p07 <- ggplot(ro_all[name == "era5"], aes(x = annual, fill = period)) +
-  geom_histogram(binwidth = 25, color = "black", position = "dodge") +
-  theme_bw() + 
-  labs(x = NULL, y = " ", title = " ", fill = "Period") + 
-  scale_fill_manual(values = c("#0C7BCD", "#FFC20A")) +
-  scale_y_continuous(limits = c(0, 10), expand = c(0, 0),
-                     breaks = seq(2, 8, 2)) +
-  scale_x_continuous(limits = c(50, 425), breaks = seq(100, 400, 100)) +
-  geom_vline(xintercept = median(ro_all[name == "era5" & Z <= 1990, annual]), 
-             linetype = "dashed", color = "#0C7BCD", linewidth = 1) +
-  geom_vline(xintercept = median(ro_all[name == "era5" & Z > 1990, annual]), 
-             linetype = "dashed", color = "#FFC20A", linewidth = 1) +
-  theme(plot.title = element_text(size=28), axis.text = element_text(size = 20), 
-        axis.title = element_text(size = 24), 
-        legend.text = element_text(size = 20), 
-        legend.title = element_text(size = 24))
-
-p08 <- ggplot(ro_all[name == "mhm"], aes(x = annual, fill = period)) +
-  geom_histogram(binwidth = 25, color = "black", position = "dodge") +
-  theme_bw() + 
-  labs(x = NULL, y = " ", title = " ", fill = "Period") + 
-  scale_fill_manual(values = c("#0C7BCD", "#FFC20A")) +
-  scale_y_continuous(limits = c(0, 10), expand = c(0, 0),
-                     breaks = seq(2, 8, 2)) +
-  scale_x_continuous(limits = c(50, 425), breaks = seq(100, 400, 100)) +
-  geom_vline(xintercept = median(ro_all[name == "mhm" & Z <= 1990, annual]), 
-             linetype = "dashed", color = "#0C7BCD", linewidth = 1) +
-  geom_vline(xintercept = median(ro_all[name == "mhm" & Z > 1990, annual]), 
-             linetype = "dashed", color = "#FFC20A", linewidth = 1) +
-  theme(plot.title = element_text(size=28), axis.text = element_text(size = 20), 
-        axis.title = element_text(size = 24), 
-        legend.text = element_text(size = 20), 
-        legend.title = element_text(size = 24))
-
-p09 <- ggplot(ro_all[name == "terraclimate"], aes(x = annual, fill = period)) +
-  geom_histogram(binwidth = 25, color = "black", position = "dodge") +
-  theme_bw() + 
-  labs(x = NULL, y = " ", title = "Annual Q in [mm]",
-       fill = "Period") + 
-  scale_fill_manual(values = c("#0C7BCD", "#FFC20A")) +
-  scale_y_continuous(limits = c(0, 10), expand = c(0, 0),
-                     breaks = seq(2, 8, 2)) +
-  scale_x_continuous(limits = c(50, 425), breaks = seq(100, 400, 100)) +
-  geom_vline(xintercept = median(ro_all[name == "terraclimate" & Z <= 1990, annual]), 
-             linetype = "dashed", color = "#0C7BCD", linewidth = 1) +
-  geom_vline(xintercept = median(ro_all[name == "terraclimate" & Z > 1990, annual]), 
-             linetype = "dashed", color = "#FFC20A", linewidth = 1) +
-  theme(plot.title = element_text(size=28), axis.text = element_text(size = 20), 
-        axis.title = element_text(size = 24), 
-        legend.text = element_text(size = 20), 
-        legend.title = element_text(size = 24))
-
-gg_ro <- ggarrange(p09, p08, p07, nrow = 3, align = "v")
+ro_cor <- merge(ro_all, grdc, by = "date", allow.cartesian = TRUE)
+ro_cor <- ro_cor[, Year := year(date)
+][, annual_ro := sum(ro), by =.(Year, ro_name)
+][, annual := sum(value), by = .(Year, ro_name)
+][, .(Year, annual_ro, ro_name, annual, name)] %>% unique()
+ro_cor <- ro_cor[, ro_cor := cor(annual_ro, annual), by = .(ro_name, name)
+][, .(ro_name, ro_cor)] %>% unique()
 ###
-# pme
+# budget
 ###
-pme_all <- merge(tp_all, e_all, by = c('Z', 'name', 'period'))
-pme_all <- pme_all[, annual := annual.x - annual.y, by = .(Z, name)
-                   ][, .(Z, annual, period, name)]
+cwc <- merge(tp_all, e_all, by = "date", allow.cartesian = TRUE) %>%
+  merge(ro_all, by = "date", allow.cartesian = TRUE)
+cwc <- cwc[, Z := year(date)
+][, P := sum(tp), by = .(Z, tp_name, e_name, ro_name)
+][, E := sum(e), by = .(Z, tp_name, e_name, ro_name)
+][, Q := sum(ro), by = .(Z, tp_name, e_name, ro_name)
+][, r := P - E - Q
+][, r_cor := cor(P - E, Q), by = .(tp_name, e_name, ro_name)
+][, .(Z, r, r_cor, tp_name, e_name, ro_name)] %>% unique()
 
-p10 <- ggplot(pme_all[name == "era5"], aes(x = annual, fill = period)) +
-  geom_histogram(binwidth = 25, color = "black", position = "dodge") +
+cwc_dist <- copy(cwc)
+cwc_dist <- cwc_dist[, r_mean := mean(r), by = .(tp_name, e_name, ro_name)
+][, r_sd := sd(r), by = .(tp_name, e_name, ro_name)
+][, .(r_mean, r_sd, r_cor, tp_name, e_name, ro_name)] %>%
+  unique()
+cwc_dist <- merge(cwc_dist, tp_cor, by = "tp_name", allow.cartesian = TRUE) %>%
+  merge(ro_cor, by = "ro_name", allow.cartesian = TRUE)
+cwc_dist <- cwc_dist[order(cwc_dist$r_sd, abs(cwc_dist$r_mean), rev(r_cor),
+                           rev(tp_cor), rev(ro_cor))]
+
+cwc_rank <- copy(cwc_dist)
+cwc_rank <- cwc_rank[, rank := (r_sd*abs(r_mean))/((r_cor*tp_cor*ro_cor)^2)
+][, .(rank, tp_name, e_name, ro_name)]
+cwc_rank <- cwc_rank[order(rank)]
+cwc_rank$rank_idx <- seq.int(nrow(cwc_rank))
+cwc_rank <- cwc_rank[, .(rank_idx, tp_name, e_name, ro_name)]
+
+cwc <- merge(cwc, cwc_rank, by = c("tp_name", "e_name", "ro_name"),
+             allow.cartesian = TRUE)
+
+plot_ranks <- c(1:6, 14, 24, 38, 48, 72, 87, 96)
+###
+# Plots
+###
+p01 <- ggplot(cwc[rank_idx %in% plot_ranks]) +
+  geom_density(aes(x = r, fill = rank_idx, group = rank_idx)) +
+  scale_fill_distiller(guide = "colourbar", palette = "BrBG") +
+  theme_bw() +
+  labs(x = "Budget Residual [mm]", y = "Density", fill = "Ranking") +
+  scale_x_continuous(limits = c(-720, 720), expand = c(0, 0)) +
+  scale_y_continuous(limits = c(0, 0.014), expand = c(0, 0),
+                     breaks = seq(0.002, 0.012, 0.002)) +
+  theme(panel.border = element_rect(colour = "black", linewidth = 2),
+        panel.grid.minor.y = element_blank(),
+        axis.text = element_text(size = 16),
+        axis.title = element_text(size = 20),
+        legend.text = element_text(size = 16),
+        legend.title = element_text(size = 20),
+        axis.ticks.length.y = unit(-.25, "cm"))
+
+p02 <- copy(cwc_rank)
+p02$rank_idx <- toOrdinal(p02$rank_idx)
+setnames(p02, c("rank_idx", "tp_name", "e_name", "ro_name"),
+         c("Ranking", "P Data", "E Data", "Q Data"))
+p02 <- tableGrob(p02, rows = NULL, theme = ttheme_minimal(base_size = 16))
+
+p02 <- gtable_add_grob(p02, grobs = segmentsGrob(x0 = unit(0,"npc"),
+                                                 y0 = unit(0,"npc"),
+                                                 x1 = unit(1,"npc"),
+                                                 y1 = unit(0,"npc"),
+                                                 gp = gpar(lwd = 4)),
+                       t = 1, b = 1, l = 1, r = 4)
+
+p03 <- ggplot(cwc) +
+  geom_density(aes(x = r, fill = rank_idx, group = rank_idx)) +
+  scale_fill_distiller(guide = "colourbar", palette = "BrBG") +
   theme_bw() + 
-  labs(x = NULL, y = " ", title = " ", fill = "Period") + 
-  scale_fill_manual(values = c("#0C7BCD", "#FFC20A")) +
-  scale_y_continuous(limits = c(0, 10), expand = c(0, 0),
-                     breaks = seq(2, 8, 2))  +
-  scale_x_continuous(limits = c(-50, 450), breaks = seq(0, 400, 100)) +
-  geom_vline(xintercept = median(pme_all[name == "era5" & Z <= 1990, annual]), 
-             linetype = "dashed", color = "#0C7BCD", linewidth = 1) +
-  geom_vline(xintercept = median(pme_all[name == "era5" & Z > 1990, annual]), 
-             linetype = "dashed", color = "#FFC20A", linewidth = 1) +
-  theme(plot.title = element_text(size=28), axis.text = element_text(size = 20), 
-        axis.title = element_text(size = 24), 
-        legend.text = element_text(size = 20), 
-        legend.title = element_text(size = 24))
+  labs(x = "Budget Residual [mm]", y = "Density", fill = "Ranking") +
+  scale_x_continuous(limits = c(-720, 720), expand = c(0, 0)) +
+  scale_y_continuous(limits = c(0, 0.014), expand = c(0, 0),
+                     breaks = seq(0.002, 0.012, 0.002)) +
+  theme(panel.border = element_rect(colour = "black", linewidth = 2),
+        panel.grid.minor.y = element_blank(),
+        axis.text = element_text(size = 16), 
+        axis.title = element_text(size = 20), 
+        legend.text = element_text(size = 16), 
+        legend.title = element_text(size = 20), 
+        axis.ticks.length.y = unit(-.25, "cm"))
 
-p11 <- ggplot(pme_all[name == "mhm"], aes(x = annual, fill = period)) +
-  geom_histogram(binwidth = 25, color = "black", position = "dodge") +
-  theme_bw() + 
-  labs(x = NULL, y = " ", title = " ", fill = "Period") + 
-  scale_fill_manual(values = c("#0C7BCD", "#FFC20A")) +
-  scale_y_continuous(limits = c(0, 10), expand = c(0, 0),
-                     breaks = seq(2, 8, 2))  +
-  scale_x_continuous(limits = c(-50, 450), breaks = seq(0, 400, 100)) +
-  geom_vline(xintercept = median(pme_all[name == "mhm" & Z <= 1990, annual]), 
-             linetype = "dashed", color = "#0C7BCD", linewidth = 1) +
-  geom_vline(xintercept = median(pme_all[name == "mhm" & Z > 1990, annual]), 
-             linetype = "dashed", color = "#FFC20A", linewidth = 1) +
-  theme(plot.title = element_text(size=28), axis.text = element_text(size = 20), 
-        axis.title = element_text(size = 24), 
-        legend.text = element_text(size = 20), 
-        legend.title = element_text(size = 24))
-
-p12 <- ggplot(pme_all[name == "terraclimate"], aes(x = annual, fill = period)) +
-  geom_histogram(binwidth = 25, color = "black", position = "dodge") +
-  theme_bw() + 
-  labs(x = NULL, y = " ", title = "Annual P - E in [mm]",
-       fill = "Period") + 
-  scale_fill_manual(values = c("#0C7BCD", "#FFC20A")) +
-  scale_y_continuous(limits = c(0, 10), expand = c(0, 0),
-                     breaks = seq(2, 8, 2))  +
-  scale_x_continuous(limits = c(-50, 450), breaks = seq(0, 400, 100)) +
-  geom_vline(xintercept = median(pme_all[name == "terraclimate" & Z <= 1990, annual]), 
-             linetype = "dashed", color = "#0C7BCD", linewidth = 1) +
-  geom_vline(xintercept = median(pme_all[name == "terraclimate" & Z > 1990, annual]), 
-             linetype = "dashed", color = "#FFC20A", linewidth = 1) +
-  theme(plot.title = element_text(size=28), axis.text = element_text(size = 20), 
-        axis.title = element_text(size = 24), 
-        legend.text = element_text(size = 20), 
-        legend.title = element_text(size = 24))
-
-gg_pet <- ggarrange(p10, p11, p12, nrow = 3, align = "v")
-
-p_terra <- annotate_figure(ggarrange(p03, p06, p09, p12, ncol = 4, align = 'hv',
-                                     common.legend = TRUE, legend = "none"),
-                           right = text_grob("TerraClimate", rot = -90, size = 24))
-p_mhm <- annotate_figure(ggarrange(p02, p05, p08, p11, ncol = 4, align = 'hv',
-                                   common.legend = TRUE, legend = "none"),
-                         right = text_grob("mHM", rot = -90, size = 24))
-p_era <- annotate_figure(ggarrange(p01, p04, p07, p10, ncol = 4, align = 'hv',
-                                   common.legend = TRUE, legend = "none"),
-                         right = text_grob("ERA5-Land", rot = -90, size = 24))
-
-
-p00 <- ggarrange(p_terra, p_mhm, p_era,
-                 get_legend(p01, 'bottom'),
-                 nrow = 4, align = "hv", heights = c(1,1,1,0.2))
-
-ggsave("fig04.pdf", p00, width = 5.01*4, height = 5.01*3.1, dpi = 600)
+p00 <- ggarrange(p02)
+ggsave("sup01.pdf", p00, width = 9, height = 16*2)
+ggsave("sup02.pdf", p03, width = 8, height = 4.5)
+ggsave("fig04.pdf", p01, width = 8, height = 4.5)
