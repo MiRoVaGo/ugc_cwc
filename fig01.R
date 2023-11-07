@@ -5,6 +5,8 @@ library(ggpubr)
 library(scales)
 library(ggpattern)
 
+GOLDEN_RATIO <- (1 + sqrt(5))/2
+
 base <- readRDS('data/elevation.rds')
 cz <- st_read("data/gadm41_CZE_0.shp")
 basins <- st_read('data/wmobb_basins.shp')
@@ -12,7 +14,8 @@ danube <- basins[basins$WMOBB == 642 | basins$WMOBB == 643 | basins$WMOBB == 635
 danube <- st_union(danube)
 elbe <- basins[basins$WMOBB == 640, ]
 oder <- basins[basins$WMOBB == 657 | basins$WMOBB == 658, ]
-
+sf_use_s2(FALSE)
+oder <- st_union(oder, is_coverage = TRUE)
 
 
 ggplot(base) +
@@ -21,9 +24,10 @@ ggplot(base) +
                                   '#7E4B11', '#864747', '#FBFBFB')) +
   geom_sf_pattern(data = danube, fill = NA, color = 'black',
                   linewidth = 2, pattern = "stripe", pattern_fill = "black") +
-  geom_sf(data = elbe, fill = alpha("gray",0.5), color = 'gray', linewidth = 2) +
-  #geom_sf(data = oder, fill = alpha("gray",0.4), color = NA) +
-  geom_sf(data = cz, fill = NA, color = "red", linewidth = 1) +
+  geom_sf(data = elbe, fill = alpha("gray69",0.5), color = 'gray', linewidth = 2) +
+  geom_sf_pattern(data = oder, fill = NA, pattern_color = "gray23", color = NA,
+                  linewidth = 2, pattern = "circle", pattern_fill = "gray23") +
+  geom_sf(data = cz, fill = NA, color = "red", linewidth = 2) +
   annotate('text', x = 13.5, y = 49.15, label = 'Šumava Mt', angle = -45,
            fontface = 2) +
   annotate('text', x = 15.55, y = 50.65, label = 'Sudetic Mt', angle = -30,
@@ -38,4 +42,5 @@ ggplot(base) +
         panel.border = element_rect(colour = "black", fill = NA, linewidth = 2),
         axis.ticks.length = unit(-0.25, "cm"))
 
-ggsave('fig01.pdf', width = 8, height = 4.5, dpi = 600, device = cairo_pdf)
+ggsave('fig01.pdf', width = 4.5*GOLDEN_RATIO, height = 4.5, dpi = 600,
+       device = cairo_pdf)

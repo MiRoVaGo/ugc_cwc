@@ -211,8 +211,8 @@ p06 <- ggplot(data = sim_e, aes(x = Year, y = P)) +
   scale_x_continuous(limits = c(1961, 2020), expand = c(0, 0), 
                      breaks = seq(1920, 2040, 10)) +
   scale_color_manual(name = NULL, values = c("Data Sets" = "gray")) +
-  scale_y_continuous(limits = c(-150, 92), expand = c(0, 0), 
-                     breaks = seq(-100, 100, 25)) +
+  scale_y_continuous(limits = c(-32, 18), expand = c(0, 0), 
+                     breaks = seq(-20, 15, 5)) +
   geom_hline(yintercept = 0) +
   labs(x = NULL, y = "Evapotranspiration\nAnomaly [%]", title = NULL) +
   theme_bw() + 
@@ -225,9 +225,9 @@ p06 <- ggplot(data = sim_e, aes(x = Year, y = P)) +
         legend.text = element_text(size = 16), 
         legend.title = element_text(size = 20),
         axis.ticks.length.y = unit(-.25, "cm"), axis.ticks.length.x = unit(.25, "cm"),
-        legend.position = c(0.92, 0.88))
+        legend.position = c(0.92, 0.28))
 
-p07 <- p06 + annotation_custom(p05, xmin = 1915, ymax = -25)
+p07 <- p06 + annotation_custom(p05, xmin = 1915, ymax = -15)
 ###
 #
 ###
@@ -357,3 +357,4 @@ p12 <- ggarrange(p03, p07, p11, ncol = 1, labels = c('a', "b", "c"), align = 'hv
 
 
 ggsave("fig02.pdf", p12, width = 16, height = 4.5*3, dpi = 600)
+

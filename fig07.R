@@ -5,6 +5,7 @@ library(sf)
 library(ggpubr)
 library(scales)
 
+GOLDEN_RATIO <- (1 + sqrt(5))/2
 cz <- st_read("./data/gadm41_CZE_0.shp")
 ###
 # terraclimate
@@ -15,6 +16,19 @@ terraclimate_ro <- readRDS("data/ro/terra_q_cropped.rds")
 
 terraclimate_pme <- merge(terraclimate_tp, terraclimate_et, by = c("x", "y", "date"))
 terraclimate_pme <- terraclimate_pme[, value := value.x - value.y][, .(x, y, date, value)]
+
+terraclimate_res <- merge(terraclimate_pme, terraclimate_ro, by = c("x", "y", "date"))
+terraclimate_res <- terraclimate_res[, value := value.x - value.y][, .(x, y, date, value)]
+
+terraclimate_res <- terraclimate_res[year(date) <= 1990, period := "1961-1990"
+][year(date) > 1990, period := "1991-2020"
+][, annual := sum(value, na.rm = TRUE), by = .(x, y, year(date))
+][, Z := year(date)][, .(x, y, Z, period, annual)] %>% unique()
+terraclimate_res <- dcast(terraclimate_res, x + y + Z ~ period, value.var = "annual")
+terraclimate_res <- terraclimate_res[, median.1 := median(`1961-1990`, na.rm = TRUE), by = .(x, y)
+][, median.2 := median(`1991-2020`, na.rm = TRUE), by = .(x, y)
+][, median := median.2 - median.1, by = .(x, y)
+][, .(x, y, median)] %>% unique()
 
 terraclimate_pme <- terraclimate_pme[year(date) <= 1990, period := "1961-1990"
 ][year(date) > 1990, period := "1991-2020"
@@ -117,7 +131,6 @@ p04 <- ggplot(terraclimate_pme) +
   geom_raster(aes(x = x, y = y, fill = median)) +
   geom_sf(data = cz, fill = NA, color = "black", linewidth = 1) +
   coord_sf(expand = FALSE) +
-  
   scale_fill_distiller(palette = "PRGn", direction = 1, guide = "colourbar", limits = c(-1,1)*max(abs(terraclimate_pme$median))) +
   theme_bw() +
   labs(x = NULL, title = " ", y = "Changes in (P - E)", fill = "[mm]") +
@@ -132,6 +145,27 @@ p04 <- ggplot(terraclimate_pme) +
         strip.text = element_text(size = 24),
         strip.background = element_rect(fill = "white", color = "black", linewidth = 2))
 
+p05 <- ggplot(terraclimate_res) +
+  geom_raster(aes(x = x, y = y, fill = median)) +
+  geom_sf(data = cz, fill = NA, color = "black", linewidth = 1) +
+  coord_sf(expand = FALSE) +
+  scale_fill_distiller(palette = "PRGn", direction = 1, guide = "colourbar",
+                       limits = c(-1,1)*max(abs(terraclimate_res$median))) +
+  theme_bw() +
+  labs(x = NULL, title = " ", y = expression(paste("Changes in ", xi, sep = "")),
+       fill = "[mm]") +
+  theme(plot.title = element_text(size=28), axis.text = element_text(size = 16), 
+        axis.title = element_text(size = 24), 
+        legend.text = element_text(size = 20), 
+        legend.title = element_text(size = 24),
+        panel.grid = element_line(color = "black"),
+        panel.border = element_rect(colour = "black", linewidth = 2),
+        panel.background = element_rect(fill = NA), panel.ontop = TRUE,
+        axis.ticks.length=unit(-0.25, "cm"),
+        strip.text = element_text(size = 24),
+        strip.background = element_rect(fill = "white", color = "black",
+                                        linewidth = 2))
+
 ###
 # mhm
 ###
@@ -141,6 +175,22 @@ mhm_ro <- readRDS("data/ro/mhm_ro_cropped.rds")
 
 mhm_pme <- merge(mhm_tp, mhm_et, by = c("x", "y", "date"))
 mhm_pme <- mhm_pme[, value := value.x - value.y][, .(x, y, date, value)]
+
+mhm_res <- merge(mhm_pme, mhm_ro, by = c("x", "y", "date"))
+mhm_res <- mhm_res[, value := value.x - value.y][, .(x, y, date, value)]
+
+mhm_res <- mhm_res[year(date) <= 1990, period := "1961-1990"
+][year(date) > 1990, period := "1991-2020"
+][, annual := sum(value, na.rm = TRUE), by = .(x, y, year(date))
+][, Z := year(date)][, .(x, y, Z, period, annual)] %>% unique()
+mhm_res <- dcast(mhm_res, x + y + Z ~ period, value.var = "annual")
+mhm_res <- mhm_res[, median.1 := median(`1961-1990`, na.rm = TRUE), by = .(x, y)
+][, median.2 := median(`1991-2020`, na.rm = TRUE), by = .(x, y)
+][, median := median.2 - median.1, by = .(x, y)
+][, .(x, y, median)] %>% unique()
+mhm_res_quantiles <- quantile(mhm_res$median, probs = c(.005, .995))
+mhm_res <- mhm_res[median < mhm_res_quantiles[1], median := mhm_res_quantiles[1]
+][median > mhm_res_quantiles[2], median := mhm_res_quantiles[2]]
 
 mhm_pme <- mhm_pme[year(date) <= 1990, period := "1961-1990"
 ][year(date) > 1990, period := "1991-2020"
@@ -196,11 +246,12 @@ mhm_ro <- mhm_ro[median < mhm_ro_quantiles[1], median := mhm_ro_quantiles[1]
 ###
 # Plots
 ###
-p05 <- ggplot(mhm_tp) +
+p06 <- ggplot(mhm_tp) +
   geom_raster(aes(x = x, y = y, fill = median)) +
   geom_sf(data = cz, fill = NA, color = "black", linewidth = 1) +
   coord_sf(expand = FALSE) +
-  scale_fill_distiller(palette = "PRGn", direction = 1, guide = "colourbar", limits = c(-1,1)*max(abs(mhm_tp$median))) +
+  scale_fill_distiller(palette = "PRGn", direction = 1, guide = "colourbar",
+                       limits = c(-1,1)*max(abs(mhm_tp$median))) +
   theme_bw() +
   labs(x = NULL, y = " ", title = 'mHM', fill = "[mm]") +
   theme(plot.title = element_text(size=28), axis.text = element_text(size = 16), 
@@ -212,14 +263,16 @@ p05 <- ggplot(mhm_tp) +
         panel.background = element_rect(fill = NA), panel.ontop = TRUE,
         axis.ticks.length=unit(-0.25, "cm"),
         strip.text = element_text(size = 24),
-        strip.background = element_rect(fill = "white", color = "black", linewidth = 2))
+        strip.background = element_rect(fill = "white", color = "black",
+                                        linewidth = 2))
 
-p06 <- ggplot(mhm_et) +
+p07 <- ggplot(mhm_et) +
   geom_raster(aes(x = x, y = y, fill = median)) +
   geom_sf(data = cz, fill = NA, color = "black", linewidth = 1) +
   coord_sf(expand = FALSE) +
   
-  scale_fill_distiller(palette = "PRGn", direction = 1, guide = "colourbar", limits = c(-1,1)*max(abs(mhm_et$median))) +
+  scale_fill_distiller(palette = "PRGn", direction = 1, guide = "colourbar",
+                       limits = c(-1,1)*max(abs(mhm_et$median))) +
   theme_bw() +
   labs(x = NULL, y = " ", title = " ", fill = "[mm]") +
   theme(plot.title = element_text(size=28), axis.text = element_text(size = 16), 
@@ -231,13 +284,15 @@ p06 <- ggplot(mhm_et) +
         panel.background = element_rect(fill = NA), panel.ontop = TRUE,
         axis.ticks.length=unit(-0.25, "cm"),
         strip.text = element_text(size = 24),
-        strip.background = element_rect(fill = "white", color = "black", linewidth = 2))
+        strip.background = element_rect(fill = "white", color = "black",
+                                        linewidth = 2))
 
-p07 <- ggplot(mhm_ro) +
+p08 <- ggplot(mhm_ro) +
   geom_raster(aes(x = x, y = y, fill = median)) +
   geom_sf(data = cz, fill = NA, color = "black", linewidth = 1) +
   
-  scale_fill_distiller(palette = "PRGn", direction = 1, guide = "colourbar", limits = c(-1,1)*max(abs(mhm_ro$median))) +
+  scale_fill_distiller(palette = "PRGn", direction = 1, guide = "colourbar",
+                       limits = c(-1,1)*max(abs(mhm_ro$median))) +
   theme_bw() +
   coord_sf(expand = FALSE) +
   labs(x = NULL, y = " ", title = " ", fill = "[mm]") +
@@ -250,14 +305,16 @@ p07 <- ggplot(mhm_ro) +
         panel.background = element_rect(fill = NA), panel.ontop = TRUE,
         axis.ticks.length=unit(-0.25, "cm"),
         strip.text = element_text(size = 24),
-        strip.background = element_rect(fill = "white", color = "black", linewidth = 2))
+        strip.background = element_rect(fill = "white", color = "black",
+                                        linewidth = 2))
 
-p08 <- ggplot(mhm_pme) +
+p09 <- ggplot(mhm_pme) +
   geom_raster(aes(x = x, y = y, fill = median)) +
   geom_sf(data = cz, fill = NA, color = "black", linewidth = 1) +
   coord_sf(expand = FALSE) +
   
-  scale_fill_distiller(palette = "PRGn", direction = 1, guide = "colourbar", limits = c(-1,1)*max(abs(mhm_pme$median))) +
+  scale_fill_distiller(palette = "PRGn", direction = 1, guide = "colourbar",
+                       limits = c(-1,1)*max(abs(mhm_pme$median))) +
   theme_bw() +
   labs(x = NULL, y = " ", title = " ", fill = "[mm]") +
   theme(plot.title = element_text(size=28), axis.text = element_text(size = 16), 
@@ -269,7 +326,29 @@ p08 <- ggplot(mhm_pme) +
         panel.background = element_rect(fill = NA), panel.ontop = TRUE,
         axis.ticks.length=unit(-0.25, "cm"),
         strip.text = element_text(size = 24),
-        strip.background = element_rect(fill = "white", color = "black", linewidth = 2))
+        strip.background = element_rect(fill = "white", color = "black",
+                                        linewidth = 2))
+
+p10 <- ggplot(mhm_res) +
+  geom_raster(aes(x = x, y = y, fill = median)) +
+  geom_sf(data = cz, fill = NA, color = "black", linewidth = 1) +
+  coord_sf(expand = FALSE) +
+  
+  scale_fill_distiller(palette = "PRGn", direction = 1, guide = "colourbar",
+                       limits = c(-1,1)*max(abs(mhm_res$median))) +
+  theme_bw() +
+  labs(x = NULL, y = " ", title = " ", fill = "[mm]") +
+  theme(plot.title = element_text(size=28), axis.text = element_text(size = 16), 
+        axis.title = element_text(size = 24), 
+        legend.text = element_text(size = 20), 
+        legend.title = element_text(size = 24),
+        panel.grid = element_line(color = "black"),
+        panel.border = element_rect(colour = "black", linewidth = 2),
+        panel.background = element_rect(fill = NA), panel.ontop = TRUE,
+        axis.ticks.length=unit(-0.25, "cm"),
+        strip.text = element_text(size = 24),
+        strip.background = element_rect(fill = "white", color = "black",
+                                        linewidth = 2))
 ###
 # era5-Land
 ###
@@ -279,6 +358,19 @@ era5_ro <- readRDS("data/ro/era5_ro_cropped.rds")
 
 era5_pme <- merge(era5_tp, era5_et, by = c("x", "y", "date"))
 era5_pme <- era5_pme[, value := value.x - value.y][, .(x, y, date, value)]
+
+era5_res <- merge(era5_pme, era5_ro, by = c("x", "y", "date"))
+era5_res <- era5_res[, value := value.x - value.y][, .(x, y, date, value)]
+
+era5_res <- era5_res[year(date) <= 1990, period := "1961-1990"
+][year(date) > 1990, period := "1991-2020"
+][, annual := sum(value, na.rm = TRUE), by = .(x, y, year(date))
+][, Z := year(date)][, .(x, y, Z, period, annual)] %>% unique()
+era5_res <- dcast(era5_res, x + y + Z ~ period, value.var = "annual")
+era5_res <- era5_res[, median.1 := median(`1961-1990`, na.rm = TRUE), by = .(x, y)
+][, median.2 := median(`1991-2020`, na.rm = TRUE), by = .(x, y)
+][, median := median.2 - median.1, by = .(x, y)
+][, .(x, y, median)] %>% unique()
 
 era5_pme <- era5_pme[year(date) <= 1990, period := "1961-1990"
 ][year(date) > 1990, period := "1991-2020"
@@ -322,12 +414,13 @@ era5_ro <- era5_ro[, median.1 := median(`1961-1990`, na.rm = TRUE), by = .(x, y)
 ###
 # Plots
 ###
-p09 <- ggplot(era5_tp) +
+p11 <- ggplot(era5_tp) +
   geom_raster(aes(x = x, y = y, fill = median)) +
   geom_sf(data = cz, fill = NA, color = "black", linewidth = 1) +
   coord_sf(expand = FALSE) +
   
-  scale_fill_distiller(palette = "PRGn", direction = 1, guide = "colourbar", limits = c(-1,1)*max(abs(era5_tp$median))) +
+  scale_fill_distiller(palette = "PRGn", direction = 1, guide = "colourbar",
+                       limits = c(-1,1)*max(abs(era5_tp$median))) +
   theme_bw() +
   labs(x = NULL, y = " ", title = 'ERA5-Land', fill = "[mm]") +
   theme(plot.title = element_text(size=28), axis.text = element_text(size = 16), 
@@ -339,14 +432,16 @@ p09 <- ggplot(era5_tp) +
         panel.background = element_rect(fill = NA), panel.ontop = TRUE,
         axis.ticks.length=unit(-0.25, "cm"),
         strip.text = element_text(size = 24),
-        strip.background = element_rect(fill = "white", color = "black", linewidth = 2))
+        strip.background = element_rect(fill = "white", color = "black",
+                                        linewidth = 2))
 
-p10 <- ggplot(era5_et) +
+p12 <- ggplot(era5_et) +
   geom_raster(aes(x = x, y = y, fill = median)) +
   geom_sf(data = cz, fill = NA, color = "black", linewidth = 1) +
   coord_sf(expand = FALSE) +
   
-  scale_fill_distiller(palette = "PRGn", direction = 1, guide = "colourbar", limits = c(-1,1)*max(abs(era5_et$median))) +
+  scale_fill_distiller(palette = "PRGn", direction = 1, guide = "colourbar",
+                       limits = c(-1,1)*max(abs(era5_et$median))) +
   theme_bw() +
   labs(x = NULL, y = " ", title = " ", fill = "[mm]") +
   theme(plot.title = element_text(size=28), axis.text = element_text(size = 16), 
@@ -360,10 +455,11 @@ p10 <- ggplot(era5_et) +
         strip.text = element_text(size = 24),
         strip.background = element_rect(fill = "white", color = "black", linewidth = 2))
 
-p11 <- ggplot(era5_ro) +
+p13 <- ggplot(era5_ro) +
   geom_raster(aes(x = x, y = y, fill = median)) +
   geom_sf(data = cz, fill = NA, color = "black", linewidth = 1) +
-  scale_fill_distiller(palette = "PRGn", direction = 1, guide = "colourbar", limits = c(-1,1)*max(abs(era5_ro$median))) +
+  scale_fill_distiller(palette = "PRGn", direction = 1, guide = "colourbar",
+                       limits = c(-1,1)*max(abs(era5_ro$median))) +
   theme_bw() +
   coord_sf(expand = FALSE) +
   labs(x = NULL, y = " ", title = " ", fill = "[mm]") +
@@ -378,12 +474,13 @@ p11 <- ggplot(era5_ro) +
         strip.text = element_text(size = 24),
         strip.background = element_rect(fill = "white", color = "black", linewidth = 2))
 
-p12 <- ggplot(era5_pme) +
+p14 <- ggplot(era5_pme) +
   geom_raster(aes(x = x, y = y, fill = median)) +
   geom_sf(data = cz, fill = NA, color = "black", linewidth = 1) +
   coord_sf(expand = FALSE) +
   
-  scale_fill_distiller(palette = "PRGn", direction = 1, guide = "colourbar", limits = c(-1,1)*max(abs(era5_pme$median))) +
+  scale_fill_distiller(palette = "PRGn", direction = 1, guide = "colourbar",
+                       limits = c(-1,1)*max(abs(era5_pme$median))) +
   theme_bw() +
   labs(x = NULL, y = " ", title = " ", fill = "[mm]") +
   theme(plot.title = element_text(size=28), axis.text = element_text(size = 16), 
@@ -395,25 +492,49 @@ p12 <- ggplot(era5_pme) +
         panel.background = element_rect(fill = NA), panel.ontop = TRUE,
         axis.ticks.length=unit(-0.25, "cm"),
         strip.text = element_text(size = 24),
-        strip.background = element_rect(fill = "white", color = "black", linewidth = 2))
+        strip.background = element_rect(fill = "white", color = "black",
+                                        linewidth = 2))
 
+p15 <- ggplot(era5_res) +
+  geom_raster(aes(x = x, y = y, fill = median)) +
+  geom_sf(data = cz, fill = NA, color = "black", linewidth = 1) +
+  coord_sf(expand = FALSE) +
+  
+  scale_fill_distiller(palette = "PRGn", direction = 1, guide = "colourbar",
+                       limits = c(-1,1)*max(abs(era5_res$median))) +
+  theme_bw() +
+  labs(x = NULL, y = " ", title = " ", fill = "[mm]") +
+  theme(plot.title = element_text(size=28), axis.text = element_text(size = 16), 
+        axis.title = element_text(size = 24), 
+        legend.text = element_text(size = 20), 
+        legend.title = element_text(size = 24),
+        panel.grid = element_line(color = "black"),
+        panel.border = element_rect(colour = "black", linewidth = 2),
+        panel.background = element_rect(fill = NA), panel.ontop = TRUE,
+        axis.ticks.length=unit(-0.25, "cm"),
+        strip.text = element_text(size = 24),
+        strip.background = element_rect(fill = "white", color = "black",
+                                        linewidth = 2))
 
 ###
 #
 ###
-p00 <- ggarrange(p01 + theme(legend.key.height = unit(dev.size()[2]/10, "inches")),
-                 p05 + theme(legend.key.height = unit(dev.size()[2]/10, "inches")),
-                 p09 + theme(legend.key.height = unit(dev.size()[2]/10, "inches")),
-                 p02 + theme(legend.key.height = unit(dev.size()[2]/10, "inches")),
-                 p06 + theme(legend.key.height = unit(dev.size()[2]/10, "inches")),
-                 p10 + theme(legend.key.height = unit(dev.size()[2]/10, "inches")),
-                 p03 + theme(legend.key.height = unit(dev.size()[2]/10, "inches")),
-                 p07 + theme(legend.key.height = unit(dev.size()[2]/10, "inches")),
-                 p11 + theme(legend.key.height = unit(dev.size()[2]/10, "inches")),
-                 p04 + theme(legend.key.height = unit(dev.size()[2]/10, "inches")),
-                 p08 + theme(legend.key.height = unit(dev.size()[2]/10, "inches")),
-                 p12 + theme(legend.key.height = unit(dev.size()[2]/10, "inches")),
-                 nrow = 4, ncol = 3, align = "v",
+p00 <- ggarrange(p01 + theme(legend.key.height = unit(dev.size()[2]/5, "inches")),
+                 p06 + theme(legend.key.height = unit(dev.size()[2]/5, "inches")),
+                 p11 + theme(legend.key.height = unit(dev.size()[2]/5, "inches")),
+                 p02 + theme(legend.key.height = unit(dev.size()[2]/5, "inches")),
+                 p07 + theme(legend.key.height = unit(dev.size()[2]/5, "inches")),
+                 p12 + theme(legend.key.height = unit(dev.size()[2]/5, "inches")),
+                 p03 + theme(legend.key.height = unit(dev.size()[2]/5, "inches")),
+                 p08 + theme(legend.key.height = unit(dev.size()[2]/5, "inches")),
+                 p13 + theme(legend.key.height = unit(dev.size()[2]/5, "inches")),
+                 p04 + theme(legend.key.height = unit(dev.size()[2]/5, "inches")),
+                 p09 + theme(legend.key.height = unit(dev.size()[2]/5, "inches")),
+                 p14 + theme(legend.key.height = unit(dev.size()[2]/5, "inches")),
+                 p05 + theme(legend.key.height = unit(dev.size()[2]/5, "inches")),
+                 p10 + theme(legend.key.height = unit(dev.size()[2]/5, "inches")),
+                 p15 + theme(legend.key.height = unit(dev.size()[2]/5, "inches")),
+                 nrow = 5, ncol = 3, align = "v",
                  common.legend = TRUE, legend = "right")
 
-ggsave("fig07.pdf", p00, width = 8.15*3.1, height = 5.01*4, dpi = 600)
+ggsave("fig07.pdf", p00, width = 4.5*GOLDEN_RATIO*3, height = 4.5*5, dpi = 600)
